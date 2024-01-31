@@ -1,0 +1,2 @@
+aiogram~=3.3.0
+pylast~=5.2.1.dev16
