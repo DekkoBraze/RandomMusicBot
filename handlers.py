@@ -1,7 +1,7 @@
 import pylast
 from pyyoutube import Api
 
-from aiogram import F, Router
+from aiogram import F, Router, types
 from aiogram.filters import Command
 from aiogram.types import Message
 from aiogram.types.callback_query import CallbackQuery
@@ -50,18 +50,25 @@ async def get_album_tag(msg: Message, state: FSMContext):
 @router.callback_query(F.data == "get_track")
 async def get_random_album(clbck: CallbackQuery, state: FSMContext):
     data = await state.get_data()
-    tag = network.get_tag(data['tag_text'].lower())
+    tag_text = data['tag_text']
+    tag = network.get_tag(tag_text.lower())
+    await state.set_state()
     if clbck.data == 'get_album':
         entities = tag.get_top_albums(250)
     else:
         entities = tag.get_top_tracks(250)
-    entity_num = random.randint(0, len(entities) - 1)
     try:
+        entity_num = random.randint(0, len(entities) - 1)
         entity = entities[entity_num]
-        entity_cover = entity.item.get_cover_image()
+        try:
+            entity_cover = entity.item.get_cover_image()
+        except IndexError:
+            entity_cover = None
         entity_artist_title = entity.item.artist.name + ' - ' + entity.item.title
         entity_url = entity.item.get_url()
         entity_playcount = str(entity.item.get_playcount())
+        await clbck.bot.send_message(clbck.message.chat.id, "Here's your result:",
+                                     reply_markup=types.ReplyKeyboardRemove())
         try:
             r = youtube_api.search_by_keywords(q=entity_artist_title, search_type=["video"], count=1, limit=1)
             entity_youtube = 'https://www.youtube.com/watch?v=' + r.items[0].id.videoId
@@ -70,9 +77,12 @@ async def get_random_album(clbck: CallbackQuery, state: FSMContext):
             print(e)
             await clbck.bot.send_message(clbck.message.chat.id, "Can't get a youtube video.")
             keyboard = kb.ger_url_menu(entity_url)
-        answer = (entity_artist_title + '\n\n' + 'Playcount: ' + entity_playcount)
-        await clbck.bot.send_photo(clbck.message.chat.id, entity_cover, caption=answer, reply_markup=keyboard)
+        answer = entity_artist_title + '\n\n' + 'Playcount: ' + entity_playcount
+        if entity_cover:
+            await clbck.bot.send_photo(clbck.message.chat.id, entity_cover, caption=answer, reply_markup=keyboard)
+        else:
+            await clbck.bot.send_message(clbck.message.chat.id, answer, reply_markup=keyboard)
         restart_menu = kb.get_restart_menu(clbck.data)
         await clbck.bot.send_message(clbck.message.chat.id, "What's next?", reply_markup=restart_menu)
-    except IndexError:
-        await clbck.bot.send_message(clbck.message.chat.id, 'Irrelevant tag. Please, try again.')
+    except ValueError:
+        await clbck.bot.send_message(clbck.message.chat.id, text.error_tag, reply_markup=kb.get_tag)

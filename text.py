@@ -1,2 +1,3 @@
 greet = "Hello, {name}! I'm RandomMusicBot. You can explore music with my help. Press the button below to enter a tag and start searching."
 get_tag = 'Write a tag or choose it from a menu. It can be genre or mood.'
+error_tag = 'Irrelevant tag. Please, try again.'
