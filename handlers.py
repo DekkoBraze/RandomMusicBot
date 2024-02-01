@@ -11,6 +11,7 @@ import pylast
 import kb
 import text
 
+tag_text = ''
 router = Router()
 network = pylast.LastFMNetwork(
     api_key=API_KEY,
@@ -20,17 +21,19 @@ network = pylast.LastFMNetwork(
 )
 
 
-tag_text = ''
-
-
 @router.message(Command("start"))
 async def start_handler(msg: Message):
+    global tag_text
+    tag_text = ''
     await msg.answer(text.greet.format(name=msg.from_user.full_name), reply_markup=kb.get_tag)
 
 
 @router.callback_query(F.data == "get_tag")
 async def get_album_tag(clbck: CallbackQuery, state: FSMContext):
-    await clbck.bot.send_message(clbck.message.chat.id, text.get_tag)
+    tags = network.get_top_tags(50)
+    tags = [tag.item.name for tag in tags]
+    buttons = kb.get_tags_menu(tags)
+    await clbck.bot.send_message(clbck.message.chat.id, text.get_tag, reply_markup=buttons)
     await state.set_state(BotStates.getting_tag)
 
 
@@ -46,8 +49,6 @@ async def get_album_tag(msg: Message, state: FSMContext):
 async def get_random_album(clbck: CallbackQuery, state: FSMContext):
     global tag_text
     tag = network.get_tag(tag_text.lower())
-    #Добавить отображение популярных тегов, чтобы пользователь вместо набора текста тыкал на кнопочки
-    tags = network.get_top_tags(50)
     if clbck.data == 'get_album':
         entities = tag.get_top_albums(250)
     else:
@@ -58,24 +59,12 @@ async def get_random_album(clbck: CallbackQuery, state: FSMContext):
         entity_cover = entity.item.get_cover_image()
         entity_url = entity.item.get_url()
         entity_playcount = str(entity.item.get_playcount())
-        keyboard = kb.url_buttons(entity_url)
+        keyboard = kb.ger_url_menu(entity_url)
         answer = (entity.item.artist.name + ' - ' + entity.item.title + '\n\n' + 'Playcount: ' +
                   entity_playcount)
         await clbck.bot.send_photo(clbck.message.chat.id, entity_cover, caption=answer, reply_markup=keyboard)
         await state.clear()
+        restart_menu = kb.get_restart_menu(clbck.data)
+        await clbck.bot.send_message(clbck.message.chat.id, "What's next?", reply_markup=restart_menu)
     except IndexError:
         await clbck.bot.send_message(clbck.message.chat.id, 'Irrelevant tag. Please, try again.')
-
-
-
-#@router.message(BotStates.getting_genre)
-#async def search_album(msg: Message, state: FSMContext):
-#    query = 'genre:' + msg.text.replace(' ', '%')
-#    random_offset = random.randint(0, 100)
-#    print(random_offset)
-#    async with spotify.Client(CLIENT_ID, CLIENT_SECRET) as client:
-#        results = await client.search(query, types=['track'], limit=50, offset=random_offset)
-#        for track in results.tracks:
-#            if track.popularity > 40:
-#                print(track.artist.name + ' - ' + track.name)
-#    await state.clear()
