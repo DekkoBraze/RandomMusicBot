@@ -1,3 +1,5 @@
+## About
+
 The RandomMusicBot is a Telegram bot that allows users to search for random albums and tracks from the last.fm database using specific tag. 
 
 The bot also provides links to YouTube video (which is the first result of a search by an artist's name and title of a track/album) and the last.fm page.
